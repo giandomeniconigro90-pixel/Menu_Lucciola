@@ -1264,3 +1264,17 @@ body.wifi-open { overflow: hidden; }
   #wifi-modal .modal-content::before { content: ''; position: absolute; top: 12px; left: 50%; transform: translateX(-50%); width: 40px; height: 4px; border-radius: 4px; background: #d9cbbb; }
   .modal-content .wifi-icon-large { width: 44px; height: 44px; margin-bottom: 12px; }
 }
+
+/* Stable navigation: real controls in fixed grid columns, never clipped. */
+.nav-pill-wrapper { display: grid; grid-template-columns: 40px minmax(0, 1fr) 40px; gap: 4px; padding: 6px; overflow: visible; width: 100%; }
+.nav-scroll-area { min-width: 0; width: 100%; overflow-x: auto; scroll-snap-type: x proximity; }
+.category-arrow { position: static; transform: none; display: flex; align-items: center; justify-content: center; width: 40px; height: 44px; padding: 0; border: 1px solid #e4d5bf; border-radius: 50%; background: #f2e7d5; color: #80532f; cursor: pointer; box-shadow: none; }
+.category-arrow svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.category-arrow:disabled { opacity: .35; cursor: default; background: transparent; }
+.category-arrow:not(:disabled):active { background: #e6d4b8; }
+#category-prev, #category-next { left: auto; right: auto; }
+@media (max-width: 699px) {
+  .nav-pill-wrapper { padding: 6px; }
+  .tab-btn { flex: 0 0 auto; width: auto; min-width: 100px; }
+  .tab-btn-inner { padding-inline: 12px; font-size: 13px; }
+}
