@@ -486,20 +486,21 @@ function closeWifi(e) {
   wifiCloseTimer = setTimeout(() => { m.style.display = 'none'; }, 220);
 }
 function updateCategoryArrows() {
-  const area = document.querySelector('.nav-scroll-area');
-  if (!area) return;
-  const max = Math.max(0, area.scrollWidth - area.clientWidth);
+  const buttons = Array.from(document.querySelectorAll('.nav-scroll-area .tab-btn'));
+  const selected = buttons.findIndex(button => button.classList.contains('active'));
   const prev = document.getElementById('category-prev');
   const next = document.getElementById('category-next');
-  if (prev) prev.disabled = area.scrollLeft <= 2;
-  if (next) next.disabled = area.scrollLeft >= max - 2;
+  if (prev) prev.disabled = selected <= 0;
+  if (next) next.disabled = selected < 0 || selected >= buttons.length - 1;
 }
 function scrollCategories(direction) {
-  const area = document.querySelector('.nav-scroll-area');
-  if (!area) return;
-  const max = Math.max(0, area.scrollWidth - area.clientWidth);
-  const target = Math.max(0, Math.min(max, area.scrollLeft + direction * area.clientWidth * .8));
-  area.scrollTo({left: target, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+  const buttons = Array.from(document.querySelectorAll('.nav-scroll-area .tab-btn'));
+  const selected = buttons.findIndex(button => button.classList.contains('active'));
+  const target = selected + Math.sign(direction);
+  if (selected < 0 || target < 0 || target >= buttons.length || !direction) return;
+  const button = buttons[target];
+  const category = getActiveCategoryFromOnclick(button);
+  if (category) showCategory(category, button);
 }
 function clearMenuSearch() {
   const input = document.getElementById('menu-search');
@@ -727,6 +728,7 @@ function showCategory(catId, btnElement) {
    document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
    targetBtn.classList.add('active');
    revealCategoryButton(targetBtn);
+   updateCategoryArrows();
  }
 
 
