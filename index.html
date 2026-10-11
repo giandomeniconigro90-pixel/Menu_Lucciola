@@ -2,6 +2,7 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
+  <meta name="referrer" content="no-referrer" />
   <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0"/>
@@ -14,19 +15,11 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap"rel="stylesheet"/>
+  <link rel="stylesheet" href="vendor/fonts.css" />
   <link rel="preload" as="image" href="images/la-lucciola-neve.jpg" fetchpriority="high" />
   <link rel="preload" as="image" href="images/IMG_4459.png" />
   <link rel="stylesheet" href="style.css?v=20261011-1">
-  <script>
-    if (new URLSearchParams(location.search).get('tema') === 'natale') {
-      const theme = document.createElement('link');
-      theme.id = 'seasonal-theme'; theme.rel = 'stylesheet'; theme.href = 'themes/natale.css';
-      document.head.appendChild(theme);
-    }
-  </script>
+  <script src="theme-init.js"></script>
 
   <!-- Aggiungi nel <head>, prima degli stili -->
   <link rel="preconnect" href="https://docs.google.com" />
@@ -34,32 +27,14 @@
 </head>
 
 <body>
-<script>
-    (function () {
-      // Default NORMAL
-
-      // Attiva Lite solo se l'utente ha "Risparmio dati" (segnale forte, pochi falsi positivi)
-      var c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-      if (c && c.saveData) {
-        document.body.classList.add('lite-mode');
-        return;
-      }
-
-      // Fallback: attiva Lite solo se NON riesci proprio a caricare un asset locale
-      var testImg = new Image();
-      testImg.onerror = function () {
-        document.body.classList.add('lite-mode');
-      };
-      testImg.src = "images/icon_app.png";
-    })();
-</script>
+<script src="lite-init.js"></script>
 
 
 <!-- LITE SWITCH (Destra) -->
-  <button id="lite-switch" onclick="toggleLiteMode()" aria-label="Modalità Lite"></button>
+  <button id="lite-switch" data-action="lite" aria-label="Modalità Lite"></button>
 
   <!-- WIFI BUTTON (Sinistra) -->
-  <button class="wifi-fab" onclick="openWifi()" aria-label="Wi-Fi">
+  <button class="wifi-fab" data-action="wifi-open" aria-label="Wi-Fi">
     <svg
       width="20"
       height="20"
@@ -122,9 +97,9 @@
   <div class="sticky-nav-container">
     <div class="nav-cluster">
       <div class="nav-pill-wrapper">
-        <button type="button" id="category-prev" class="category-arrow" onclick="scrollCategories(-1)" aria-label="Categoria precedente" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button>
+        <button type="button" id="category-prev" class="category-arrow" data-action="category-prev" aria-label="Categoria precedente" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button>
         <div class="nav-scroll-area">
-          <button class="tab-btn active tab-edge-left" data-cat="calde" onclick="showCategory('calde', this)">
+          <button class="tab-btn active tab-edge-left" data-cat="calde" data-action="category">
             <span class="tab-btn-inner">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M18 8h1a4 4 0 0 1 0 8h-1"></path>
@@ -137,7 +112,7 @@
             </span>
           </button>
 
-          <button class="tab-btn" data-cat="fredde" onclick="showCategory('fredde', this)">
+          <button class="tab-btn" data-cat="fredde" data-action="category">
             <span class="tab-btn-inner">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <line x1="12" y1="12" x2="22" y2="12"></line>
@@ -151,7 +126,7 @@
             </span>
           </button>
 
-          <button class="tab-btn" data-cat="aperitivi" onclick="showCategory('aperitivi', this)">
+          <button class="tab-btn" data-cat="aperitivi" data-action="category">
             <span class="tab-btn-inner">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M8 22h8M12 15v7M2 2h20l-10 13L2 2z"></path>
@@ -160,7 +135,7 @@
             </span>
           </button>
 
-          <button class="tab-btn" data-cat="alcolici" onclick="showCategory('alcolici', this)">
+          <button class="tab-btn" data-cat="alcolici" data-action="category">
             <span class="tab-btn-inner">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M8 22h8"></path>
@@ -173,7 +148,7 @@
             </span>
           </button>
 
-          <button class="tab-btn" data-cat="food" onclick="showCategory('food', this)">
+          <button class="tab-btn" data-cat="food" data-action="category">
             <span class="tab-btn-inner">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path
@@ -186,7 +161,7 @@
             </span>
           </button>
 
-          <button class="tab-btn tab-edge-right" data-cat="dolci" onclick="showCategory('dolci', this)">
+          <button class="tab-btn tab-edge-right" data-cat="dolci" data-action="category">
             <span class="tab-btn-inner">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="m4.5 13.5 3-3"></path>
@@ -199,7 +174,7 @@
             </span>
           </button>
         </div>
-        <button type="button" id="category-next" class="category-arrow" onclick="scrollCategories(1)" aria-label="Categoria successiva" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg></button>
+        <button type="button" id="category-next" class="category-arrow" data-action="category-next" aria-label="Categoria successiva" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 6 6 6-6 6"/></svg></button>
       </div>
     </div>
 
@@ -227,7 +202,7 @@
             id="menu-search"
             class="search-input"
             placeholder="Cerca nel menù..."
-            oninput="searchMenu()" aria-label="Cerca nel menù"
+            data-action="search" aria-label="Cerca nel menù"
           />
         </div>
       </div>
@@ -260,7 +235,7 @@
     </a>
   </div>
 
-  <button id="back-to-top" onclick="scrollToTop()" aria-label="Torna su">
+  <button id="back-to-top" data-action="top" aria-label="Torna su">
     <svg
       width="24"
       height="24"
@@ -331,13 +306,14 @@
     </div>
 
     <div class="footer-bottom">
-      © 2025 Bar La Lucciola • Coperto e Servizio inclusi • Designed for Laceno
+      <a href="privacy.html">Privacy</a><br />
+      © 2026 Bar La Lucciola • Coperto e Servizio inclusi • Designed for Laceno
     </div>
   </footer>
 
-  <div id="wifi-modal" class="modal-overlay" onclick="closeWifi(event)">
+  <div id="wifi-modal" class="modal-overlay" data-action="wifi-close">
     <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="wifi-title">
-      <button type="button" class="close-modal" onclick="closeWifi(event)" aria-label="Chiudi Wi-Fi">&times;</button>
+      <button type="button" class="close-modal" data-action="wifi-close" aria-label="Chiudi Wi-Fi">&times;</button>
 
       <svg
         class="wifi-icon-large"
@@ -359,7 +335,7 @@
       <p>Connettiti alla rete "La Lucciola"</p>
       <div class="wifi-password-row">
         <div id="wifi-password" class="wifi-pass">Lucciola2025</div>
-        <button type="button" class="wifi-copy-btn" onclick="copyWifiPassword()" aria-label="Copia la password Wi-Fi">
+        <button type="button" class="wifi-copy-btn" data-action="wifi-copy" aria-label="Copia la password Wi-Fi">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>
           <span>Copia</span>
         </button>
@@ -368,8 +344,7 @@
     </div>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-  <script src="script.js?v=20261011-3"></script>
+  <script src="vendor/papaparse.min.js"></script>
+  <script src="script.js?v=20261011-4"></script>
 </body>
 </html>
-

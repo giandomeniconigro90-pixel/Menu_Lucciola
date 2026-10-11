@@ -793,7 +793,7 @@ function searchMenu() {
 
   container.innerHTML = `<h3>Risultati ricerca (${allMatches.length})</h3>`;
   if (!allMatches.length) {
-    container.innerHTML += '<div class="search-empty"><p>Nessun prodotto trovato. Prova con un altro nome.</p><button type="button" onclick="clearMenuSearch()">Cancella ricerca</button></div>';
+    container.innerHTML += '<div class="search-empty"><p>Nessun prodotto trovato. Prova con un altro nome.</p><button type="button" data-action="clear-search">Cancella ricerca</button></div>';
     return;
   }
   renderItems(allMatches, container, document.body.classList.contains('lite-mode'));
@@ -898,3 +898,22 @@ window.syncSearchExpanded = syncSearchExpanded;
    
 });
 
+// Event delegation keeps executable code out of HTML attributes.
+document.addEventListener('click', event => {
+  const button = event.target.closest?.('[data-action]');
+  if (!button || button.disabled) return;
+  switch (button.dataset.action) {
+    case 'lite': toggleLiteMode(); break;
+    case 'wifi-open': openWifi(); break;
+    case 'wifi-close': closeWifi(event); break;
+    case 'wifi-copy': copyWifiPassword(); break;
+    case 'category-prev': scrollCategories(-1); break;
+    case 'category-next': scrollCategories(1); break;
+    case 'category': showCategory(button.dataset.cat, button); break;
+    case 'top': scrollToTop(); break;
+    case 'clear-search': clearMenuSearch(); break;
+  }
+});
+document.addEventListener('input', event => {
+  if (event.target.id === 'menu-search') searchMenu();
+});

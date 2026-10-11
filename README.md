@@ -1,5 +1,15 @@
 # Menù La Lucciola
 
+## Sicurezza e privacy
+
+Caratteri e PapaParse sono inclusi in vendor/ con le rispettive licenze. La CSP permette solo script del sito; gli stili inline restano consentiti per transizioni e stati. I pulsanti usano eventi JavaScript, senza codice negli attributi HTML.
+
+Il file _headers prepara le intestazioni di sicurezza per Netlify. GitHub Pages non applica questo file: sull’hosting definitivo configurare le stesse intestazioni e verificarle nelle risposte HTTP, controllando anche i redirect dei CSV Google. Non è stata effettuata una nuova pubblicazione.
+
+privacy.html è una bozza per la fase di prova. Prima della pubblicazione ufficiale confermare titolare e contatti privacy, base giuridica, hosting e relativi log (conservazione, destinatari e trasferimenti), completare i diritti degli interessati e verificare che l’hosting non aggiunga tracciatori. Il codice non comprende analytics o cookie di profilazione.
+
+Limitare la modifica del foglio al gestore, usare la verifica in due passaggi sugli account e una rete Wi-Fi ospiti isolata. Non inserire credenziali amministrative nel codice o nel CSV pubblico.
+
 Progetto unico per il menù normale e natalizio del Bar La Lucciola. La versione da usare e scaricare è nel ramo `main` di questa repository. Google Sheets alimenta prodotti, disponibilità e programmazione del tema; gli orari usano il loro CSV separato.
 
 ## Temi
