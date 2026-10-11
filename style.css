@@ -1287,3 +1287,10 @@ body.wifi-open { overflow: hidden; }
 .social-circle:hover { background:#f2e7d5; }
 .social-circle:focus-visible { outline:3px solid #80532f; outline-offset:4px; }
 .header-logo { object-fit:contain; background:var(--primary-color); }
+
+/* Icone su una riga dedicata, centrata sull’intero footer. */
+footer { grid-template-areas: "info hours" "social social" "bottom bottom"; }
+.footer-social { grid-area: social; width: 100%; justify-self: center; }
+@media (max-width: 520px) {
+  footer { grid-template-areas: "info" "hours" "social" "bottom"; grid-template-columns: 1fr; }
+}
