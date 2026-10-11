@@ -301,7 +301,7 @@ function themeForRows(rows, today = venueDateKey()) {
 function updateBrandLogo(theme) {
   const logo = document.getElementById('bar-logo');
   if (!logo) return;
-  const src = theme === 'natale' ? 'images/IMG_4459.png' : 'images/Logo_lucciola.png';
+  const src = theme === 'natale' ? 'images/Logo_lucciola_natale_ghirlanda.png' : 'images/Logo_lucciola.png';
   if (logo.getAttribute?.('src') !== src) logo.src = src;
   logo.alt = theme === 'natale' ? 'Logo natalizio Bar La Lucciola' : 'Logo Bar La Lucciola';
 }
