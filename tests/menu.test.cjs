@@ -77,10 +77,10 @@ test('refresh preserves search and ignores duplicate in-flight requests',()=>{
 });
 test('category arrows reflect both scroll boundaries',()=>{
   const {ctx,run,els}=setup();const area={scrollWidth:900,clientWidth:300,scrollLeft:0};ctx.document.querySelector=s=>s==='.nav-scroll-area'?area:null;
-  run('updateCategoryArrows()');assert.equal(els['category-prev'].hidden,true);assert.equal(els['category-next'].hidden,false);
-  area.scrollLeft=300;run('updateCategoryArrows()');assert.equal(els['category-prev'].hidden,false);assert.equal(els['category-next'].hidden,false);
-  area.scrollLeft=600;run('updateCategoryArrows()');assert.equal(els['category-next'].hidden,true);
-  area.scrollWidth=300;area.scrollLeft=0;run('updateCategoryArrows()');assert.equal(els['category-prev'].hidden,true);assert.equal(els['category-next'].hidden,true);
+  run('updateCategoryArrows()');assert.equal(els['category-prev'].disabled,true);assert.equal(els['category-next'].disabled,false);
+  area.scrollLeft=300;run('updateCategoryArrows()');assert.equal(els['category-prev'].disabled,false);assert.equal(els['category-next'].disabled,false);
+  area.scrollLeft=600;run('updateCategoryArrows()');assert.equal(els['category-next'].disabled,true);
+  area.scrollWidth=300;area.scrollLeft=0;run('updateCategoryArrows()');assert.equal(els['category-prev'].disabled,true);assert.equal(els['category-next'].disabled,true);
 });
 test('Wi-Fi copy confirms success and explains denied clipboard access',async()=>{
   const {ctx,run,els}=setup();run("document.getElementById('wifi-password').textContent='ExamplePass';document.getElementById('wifi-copy-status')");let copied='';ctx.navigator={clipboard:{async writeText(text){copied=text;}}};await run('copyWifiPassword()');assert.equal(copied,'ExamplePass');assert.equal(els['wifi-copy-status'].textContent,'Password copiata!');
