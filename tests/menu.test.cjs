@@ -75,12 +75,18 @@ test('refresh preserves search and ignores duplicate in-flight requests',()=>{
   assert.equal(els['menu-search'].value,'Caff');assert.match(els['menu-container'].innerHTML,/Risultati ricerca/);
   run('initDataFetch(false)');assert.equal(calls.length,2);
 });
-test('category arrows reflect both scroll boundaries',()=>{
-  const {ctx,run,els}=setup();const area={scrollWidth:900,clientWidth:300,scrollLeft:0};ctx.document.querySelector=s=>s==='.nav-scroll-area'?area:null;
-  run('updateCategoryArrows()');assert.equal(els['category-prev'].disabled,true);assert.equal(els['category-next'].disabled,false);
-  area.scrollLeft=300;run('updateCategoryArrows()');assert.equal(els['category-prev'].disabled,false);assert.equal(els['category-next'].disabled,false);
-  area.scrollLeft=600;run('updateCategoryArrows()');assert.equal(els['category-next'].disabled,true);
-  area.scrollWidth=300;area.scrollLeft=0;run('updateCategoryArrows()');assert.equal(els['category-prev'].disabled,true);assert.equal(els['category-next'].disabled,true);
+test('arrows select adjacent categories and stop at the ends regardless of scroll',()=>{
+  const {ctx,run,els}=setup();let selected=0;
+  const buttons=['calde','fredde','dolci'].map((cat,index)=>({dataset:{cat},classList:{contains:()=>selected===index}}));
+  ctx.document.querySelectorAll=()=>buttons;
+  ctx.choose=(_,button)=>{selected=buttons.indexOf(button);};
+  run('showCategory = function(cat, button) { choose(cat, button); updateCategoryArrows(); }; updateCategoryArrows()');
+  assert.equal(els['category-prev'].disabled,true);assert.equal(els['category-next'].disabled,false);
+  run('scrollCategories(-1)');assert.equal(selected,0);
+  run('scrollCategories(1)');assert.equal(selected,1);assert.equal(els['category-prev'].disabled,false);
+  run('scrollCategories(1)');assert.equal(selected,2);assert.equal(els['category-next'].disabled,true);
+  run('scrollCategories(1)');assert.equal(selected,2);
+  run('scrollCategories(-1)');assert.equal(selected,1);
 });
 test('Wi-Fi copy confirms success and explains denied clipboard access',async()=>{
   const {ctx,run,els}=setup();run("document.getElementById('wifi-password').textContent='ExamplePass';document.getElementById('wifi-copy-status')");let copied='';ctx.navigator={clipboard:{async writeText(text){copied=text;}}};await run('copyWifiPassword()');assert.equal(copied,'ExamplePass');assert.equal(els['wifi-copy-status'].textContent,'Password copiata!');
