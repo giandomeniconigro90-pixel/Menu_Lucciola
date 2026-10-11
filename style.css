@@ -1152,7 +1152,7 @@ header::before { animation: none; background-position: center 48%; }
 header::after { background: linear-gradient(100deg, rgba(28,23,18,.83), rgba(28,23,18,.32)); }
 .header-content { position: relative; bottom: auto; left: auto; width: 100%; max-width: 960px; margin: auto; }
 .header-brand { display: flex; align-items: center; gap: 16px; }
-.header-logo { width: 64px; height: 64px; flex-shrink: 0; object-fit: cover; border-radius: 50%; background: #fffaf1; box-shadow: 0 0 0 4px rgba(255,255,255,.18); }
+.header-logo { width: 64px; height: 64px; flex-shrink: 0; object-fit: cover; border-radius: 50%; background: #fffaf1; box-shadow: 0 0 0 4px var(--primary-color); }
 .header-content h1 { font-size: clamp(26px, 4vw, 38px); margin: 0 0 4px; }
 .subtitle { font-size: 11px; letter-spacing: 1.4px; margin: 0; }
 .info-cluster { margin-top: 18px; gap: 8px; }
