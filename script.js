@@ -912,6 +912,8 @@ document.addEventListener('click', event => {
   const button = event.target.closest?.('[data-action]');
   if (!button || button.disabled) return;
   switch (button.dataset.action) {
+    case 'review-open': document.getElementById('review-dialog')?.showModal(); break;
+    case 'review-close': document.getElementById('review-dialog')?.close(); break;
     case 'lite': toggleLiteMode(); break;
     case 'wifi-open': openWifi(); break;
     case 'wifi-close': closeWifi(event); break;
@@ -925,4 +927,12 @@ document.addEventListener('click', event => {
 });
 document.addEventListener('input', event => {
   if (event.target.id === 'menu-search') searchMenu();
+});
+
+// Il dialog nativo gestisce Escape, focus e navigazione da tastiera.
+document.getElementById('review-dialog')?.addEventListener('click', event => {
+  const dialog = event.currentTarget;
+  if (event.target !== dialog) return;
+  const rect = dialog.getBoundingClientRect();
+  if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close();
 });
