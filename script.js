@@ -320,7 +320,7 @@ function applyScheduledContent(today = venueDateKey()) {
   const existing = document.getElementById('seasonal-theme');
   if (theme === 'natale' && !existing) {
     const link = document.createElement('link');
-    link.id = 'seasonal-theme'; link.rel = 'stylesheet'; link.href = 'themes/natale.css';
+    link.id = 'seasonal-theme'; link.rel = 'stylesheet'; link.href = 'themes/natale.css?v=20261011-1';
     document.head.appendChild(link);
   } else if (theme === 'normale' && existing) existing.remove();
 }
