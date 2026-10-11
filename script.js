@@ -491,13 +491,15 @@ function updateCategoryArrows() {
   const max = Math.max(0, area.scrollWidth - area.clientWidth);
   const prev = document.getElementById('category-prev');
   const next = document.getElementById('category-next');
-  if (prev) prev.hidden = area.scrollLeft <= 2;
-  if (next) next.hidden = area.scrollLeft >= max - 2;
+  if (prev) prev.disabled = area.scrollLeft <= 2;
+  if (next) next.disabled = area.scrollLeft >= max - 2;
 }
 function scrollCategories(direction) {
   const area = document.querySelector('.nav-scroll-area');
   if (!area) return;
-  area.scrollBy({left: direction * area.clientWidth * .8, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+  const max = Math.max(0, area.scrollWidth - area.clientWidth);
+  const target = Math.max(0, Math.min(max, area.scrollLeft + direction * area.clientWidth * .8));
+  area.scrollTo({left: target, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
 }
 function clearMenuSearch() {
   const input = document.getElementById('menu-search');
