@@ -1,6 +1,6 @@
 # Menù La Lucciola
 
-Base derivata da menu-lucciola-natale. Google Sheets continua ad alimentare prodotti e orari.
+Progetto unico per il menù normale e natalizio del Bar La Lucciola. La versione da usare e scaricare è nel ramo `main` di questa repository. Google Sheets alimenta prodotti, disponibilità e programmazione del tema; gli orari usano il loro CSV separato.
 
 ## Temi
 
@@ -51,6 +51,6 @@ Il sito rilegge il CSV ogni due minuti mentre la pagina è visibile e quando si 
 
 ## Pubblicazione e verifica
 
-Nove test automatici verificano parsing, ricerca, errori di rete, pillole, date, tema e aggiornamento. La nuova logica non modifica la disposizione grafica, ma va verificata sul tablet dopo il deploy.
+Undici test automatici verificano parsing, ricerca, errori di rete, pillole, date, tema e aggiornamento. La resa grafica va verificata sui dispositivi dopo il deploy.
 
-Per un sito Netlify caricato manualmente occorre caricare nuovamente i file del ramo `fix/menu-affidabile-tema-natale` in Deploys. Dopo questo aggiornamento del codice, le modifiche al foglio non richiedono altri caricamenti del sito.
+Per un sito Netlify caricato manualmente occorre caricare nuovamente i file del ramo `main` in Deploys. Dopo questo aggiornamento del codice, le modifiche al foglio non richiedono altri caricamenti del sito.
