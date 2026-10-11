@@ -11,8 +11,7 @@ const allergenMap = {
   sedano: { icon: '🌿', label: 'Sedano' }
 };
 
-const SHEET_URL =
-  'https://docs.google.com/spreadsheets/d/e/2PACX-1vR0T1gIy-XDXJv_IYaOOOlgaJ4y7yidX2PF7RZjYp7BZEQZ4ttjHg-fbcFqLGyFVBzmeVT0W7zzJXyy/pub?output=csv';
+const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ3zXJx_aVxgXEt8zo1fMivZ0U56N4vewbELyyR597EtzUj-ttFvg2QTe7ydwMF6g/pub?gid=197054798&single=true&output=csv';
 
 // CSV ORARI (metti file locale "orari.csv" nella root del sito, oppure un Google Sheet pubblicato output=csv)
 const HOURS_CSV_URL =
@@ -42,6 +41,10 @@ const PREFERRED_SUBCAT_ORDER = [
    STATO
    =========================== */
 let menuData = {};
+let scheduledNotices = [];
+let themeSettings = [];
+let menuFetchInProgress = false;
+let previousMenuRows = null;
 
 // {0..6: [{start,end,startMin,endMin}, ...]}
 let openingSchedule = {
@@ -71,11 +74,36 @@ function isSoldOutLike(value) {
 }
 
 function getActiveCategoryFromOnclick(btn) {
-  const raw = btn?.getAttribute?.('onclick') || '';
-  const m = raw.match(/'([^']+)'/); // prende la prima stringa tra apici
-  return m ? m[1] : null;
+  return btn?.dataset?.cat || null;
 }
 
+const storage = {
+  getItem(key) { try { return localStorage.getItem(key); } catch (_) { return null; } },
+  setItem(key, value) { try { localStorage.setItem(key, value); } catch (_) {} },
+  removeItem(key) { try { localStorage.removeItem(key); } catch (_) {} }
+};
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
+}
+function parsePrice(value) {
+  const text = safeTrim(value).replace(',', '.');
+  return /^\d+(?:\.\d{1,2})?$/.test(text) ? Number(text) : null;
+}
+function menuNotice(text) {
+  const el = document.getElementById('menu-notice');
+  if (el) { el.textContent = text; el.hidden = !text; }
+}
+function validMenu(data) {
+  return data && typeof data === 'object' && !Array.isArray(data) &&
+    Object.values(data).every(c => c && typeof c.title === 'string' && Array.isArray(c.items) &&
+      c.items.every(i => i && typeof i.name === 'string' && typeof i.subcategory === 'string' && Array.isArray(i.allergens)));
+}
+function validateMenuResults(results) {
+  const fields = results.meta?.fields || [];
+  if (!['categoria', 'nome', 'prezzo'].every(f => fields.includes(f)) || results.errors?.length) {
+    throw new Error('CSV del menù non valido');
+  }
+}
 /* ===========================
    ORARI: CSV -> TAB + STATUS
    =========================== */
@@ -107,20 +135,17 @@ function dayToIndex(day) {
 }
 
 function timeToMinutes(t) {
-  const s = safeTrim(t);
-  if (!s) return null;
-  if (s.toUpperCase() === 'CHIUSO') return null;
-
-  const parts = s.split(':');
-  const hh = Number(parts[0]);
-  const mm = Number(parts[1] ?? 0);
-
-  // consenti "24:00"
+  const text = safeTrim(t);
+  if (!/^\d{1,2}:\d{2}$/.test(text)) return null;
+  const [hh, mm] = text.split(':').map(Number);
   if (hh === 24 && mm === 0) return 1440;
-  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null;
-  return hh * 60 + mm;
+  return hh >= 0 && hh < 24 && mm >= 0 && mm < 60 ? hh * 60 + mm : null;
 }
-
+function venueNow() {
+  const parts = new Intl.DateTimeFormat('en-GB', {timeZone:'Europe/Rome', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hourCycle:'h23'}).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map(p => [p.type, p.value]));
+  return new Date(+values.year, +values.month - 1, +values.day, +values.hour, +values.minute);
+}
 function parseHoursCsv(rows) {
   const schedule = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
 
@@ -160,7 +185,7 @@ function renderOpeningHoursTable() {
   if (!box) return;
 
   const names = ['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
-  const today = new Date().getDay();
+  const today = venueNow().getDay();
 
   let html = `<div class="opening-hours-title">Orari</div>`;
   html += `<table class="opening-hours-table">`;
@@ -170,7 +195,7 @@ function renderOpeningHoursTable() {
     html += `
       <tr class="${rowClass}">
         <td>${names[d]}</td>
-        <td>${formatDaySlots(openingSchedule[d])}</td>
+        <td>${escapeHtml(formatDaySlots(openingSchedule[d]))}</td>
       </tr>
     `;
   }
@@ -208,129 +233,141 @@ function isOpenNow(dateObj) {
 }
 
 function initOpeningHours() {
-  // 1) cache immediata
-  const cached = localStorage.getItem('openingHoursCache');
-  if (cached) {
-    try {
-      const parsed = JSON.parse(cached);
-      if (parsed && typeof parsed === 'object') {
-        openingSchedule = parsed;
-      }
-      renderOpeningHoursTable();
-      checkOpenStatus();
-    } catch (_) {}
-  }
-
-  // 2) fetch CSV in background
+  try {
+    const cached = JSON.parse(storage.getItem('openingHoursCache'));
+    if (cached && [0,1,2,3,4,5,6].every(d => Array.isArray(cached[d]) && cached[d].every(s => timeToMinutes(s.start) === s.startMin && timeToMinutes(s.end) === s.endMin))) openingSchedule = cached;
+  } catch (_) {}
+  renderOpeningHoursTable();
+  checkOpenStatus();
+  if (typeof Papa === 'undefined') return;
   Papa.parse(HOURS_CSV_URL, {
-    download: true,
-    header: true,
-    skipEmptyLines: true,
-    transform: (v) => safeTrim(v),
-
-    complete: (results) => {
-      openingSchedule = parseHoursCsv(results.data);
-      localStorage.setItem('openingHoursCache', JSON.stringify(openingSchedule));
-      renderOpeningHoursTable();
-      checkOpenStatus();
+    download: true, header: true, skipEmptyLines: true, transform: safeTrim,
+    complete(results) {
+      const fields = results.meta?.fields || [];
+      const rows = results.data || [];
+      const valid = !results.errors?.length && ['day','start','end'].every(f => fields.includes(f)) && rows.length && rows.every(r => dayToIndex(r.day) !== null && ((safeTrim(r.start).toUpperCase() === 'CHIUSO' && (!safeTrim(r.end) || safeTrim(r.end).toUpperCase() === 'CHIUSO')) || (timeToMinutes(r.start) !== null && timeToMinutes(r.end) !== null && timeToMinutes(r.start) !== timeToMinutes(r.end))));
+      if (!valid) { console.warn('Orari CSV non validi: mantengo gli ultimi orari disponibili'); return; }
+      openingSchedule = parseHoursCsv(rows);
+      storage.setItem('openingHoursCache', JSON.stringify(openingSchedule));
+      renderOpeningHoursTable(); checkOpenStatus();
     },
-
-    error: (err) => {
-      console.error('Errore caricamento orari:', err);
-      // se fallisce, resta la schedule di default + eventuale cache
-      renderOpeningHoursTable();
-      checkOpenStatus();
-    }
+    error(err) { console.warn('Orari non aggiornati:', err); }
   });
 }
-
-/* ===========================
-   DATA FETCH / PARSE
-   =========================== */
-function initDataFetch() {
-  // 1. TENTATIVO CACHE: Carica subito dalla memoria del telefono se esiste
-  const cachedData = localStorage.getItem('menuDataCache');
-
-  if (cachedData) {
-    try {
-      menuData = JSON.parse(cachedData);
-      console.log('Menu caricato dalla cache (istantaneo)');
-
-      // Renderizza subito la prima categoria (Calde) senza aspettare internet
-      const caldeBtn = Array.from(document.querySelectorAll('.tab-btn'))
-        .find(btn => getActiveCategoryFromOnclick(btn) === 'calde');
-      if (caldeBtn) showCategory('calde', caldeBtn);
-    } catch (e) {
-      console.error('Cache corrotta, attendo rete...', e);
-    }
+function restoreMenuView() {
+  const input = document.getElementById('menu-search');
+  if (input?.value.trim()) { searchMenu(); return; }
+  const active = document.querySelector('.tab-btn.active');
+  showCategory(getActiveCategoryFromOnclick(active) || 'calde', null);
+}
+// Date-only rules use the venue calendar (Europe/Rome), inclusive on both ends.
+function parseCalendarDate(value) {
+  const text = safeTrim(value);
+  if (!text) return '';
+  let year, month, day;
+  let match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (match) [, year, month, day] = match;
+  else {
+    match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!match) return null;
+    [, day, month, year] = match;
   }
-
-    // 2. RETE: Scarica comunque i dati aggiornati in background
-    Papa.parse(SHEET_URL, {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-
-      // PULIZIA SPAZI AUTOMATICA (Fix "Bibite" doppie)
-      transform: (value) => safeTrim(value),
-
-      complete: (results) => {
-        // Elabora i nuovi dati da Google
-        transformCsvToMenu(results.data);
-
-        // SALVA I NUOVI DATI IN CACHE (per la prossima volta)
-        localStorage.setItem('menuDataCache', JSON.stringify(menuData));
-
-        // Aggiorna la vista con i dati nuovi (live update)
-        const activeBtn = document.querySelector('.tab-btn.active');
-        if (activeBtn) {
-          const currentCat = getActiveCategoryFromOnclick(activeBtn);
-          if (currentCat) {
-            // mantiene la categoria attualmente selezionata
-            showCategory(currentCat, null);
-          }
-        } else {
-          // nessun tab attivo: fallback esplicito su "calde"
-          const caldeBtn = Array.from(document.querySelectorAll('.tab-btn'))
-            .find((btn) => getActiveCategoryFromOnclick(btn) === 'calde');
-          if (caldeBtn) {
-            showCategory('calde', caldeBtn);
-          }
-        }
-
-        console.log('Menu aggiornato da Google Sheets (Background)');
-      },
-
-      error: (err) => {
-        console.error('Errore Google Sheets:', err);
+  year = Number(year); month = Number(month); day = Number(day);
+  if (year < 1900 || year > 9999) return null;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+function venueDateKey(now = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
+  const fields = Object.fromEntries(parts.map(p => [p.type, p.value]));
+  return `${fields.year}-${fields.month}-${fields.day}`;
+}
+function isScheduledRowActive(row, today = venueDateKey()) {
+  if (isFalseLike(row.disponibile)) return false;
+  const start = parseCalendarDate(row.data_inizio);
+  const end = parseCalendarDate(row.data_fine);
+  if (start === null || end === null || (start && end && start > end)) return false;
+  return (!start || today >= start) && (!end || today <= end);
+}
+function themeForRows(rows, today = venueDateKey()) {
+  let theme = 'normale';
+  for (const row of rows) {
+    const value = safeTrim(row.descrizione).toLowerCase();
+    if (isScheduledRowActive(row, today) && ['normale', 'natale'].includes(value)) theme = value;
+  }
+  return theme;
+}
+function applyScheduledContent(today = venueDateKey()) {
+  const banner = document.getElementById('alert-banner');
+  if (banner) {
+    const notices = scheduledNotices.filter(row => isScheduledRowActive(row, today));
+    banner.textContent = notices.map(row => row.descrizione ? `${row.nome} - ${row.descrizione}` : row.nome).join(' • ');
+    banner.style.display = notices.length ? 'inline-flex' : 'none';
+    banner.classList.add('festive-badge');
+  }
+  // URL override remains available for testing either theme without changing Sheets.
+  const requested = new URLSearchParams(window.location?.search || '').get('tema');
+  const theme = ['normale', 'natale'].includes(requested) ? requested : themeForRows(themeSettings, today);
+  const existing = document.getElementById('seasonal-theme');
+  if (theme === 'natale' && !existing) {
+    const link = document.createElement('link');
+    link.id = 'seasonal-theme'; link.rel = 'stylesheet'; link.href = 'themes/natale.css';
+    document.head.appendChild(link);
+  } else if (theme === 'normale' && existing) existing.remove();
+}
+function initDataFetch(useCache = true) {
+  if (menuFetchInProgress) return;
+  if (useCache) {
+    try {
+      const cached = JSON.parse(storage.getItem('menuDataCacheV3:' + SHEET_URL));
+      if (Array.isArray(cached?.rows)) {
+        transformCsvToMenu(cached.rows);
+        previousMenuRows = JSON.stringify(cached.rows);
+        restoreMenuView();
+        menuNotice('Menù salvato: verifico gli aggiornamenti…');
       }
-    });
-
+    } catch (_) {}
+  }
+  const failed = () => {
+    menuFetchInProgress = false;
+    menuNotice(Object.keys(menuData).length ? 'Aggiornamento non disponibile. Stai consultando il menù salvato; prezzi e disponibilità potrebbero essere cambiati.' : 'Menù non disponibile. Riprova ricaricando la pagina.');
+  };
+  if (typeof Papa === 'undefined') { failed(); return; }
+  menuFetchInProgress = true;
+  Papa.parse(SHEET_URL, {
+    download: true, header: true, skipEmptyLines: true, transform: safeTrim,
+    complete(results) {
+      try {
+        validateMenuResults(results);
+        const serialized = JSON.stringify(results.data);
+        if (serialized !== previousMenuRows) {
+          transformCsvToMenu(results.data);
+          restoreMenuView();
+          previousMenuRows = serialized;
+        } else applyScheduledContent();
+        storage.setItem('menuDataCacheV3:' + SHEET_URL, JSON.stringify({rows: results.data}));
+        menuFetchInProgress = false;
+        menuNotice('');
+      } catch (_) { failed(); }
+    },
+    error: failed
+  });
 }
 
 function transformCsvToMenu(csvData) {
   menuData = {};
-  const banner = document.getElementById('alert-banner');
-
-  // Reset badge avvisi (integrato nell'header)
-  if (banner) {
-    banner.style.display = 'none';
-    banner.textContent = '';
-    banner.classList.add('festive-badge');
-  }
-
+  scheduledNotices = [];
+  themeSettings = [];
   csvData.forEach((row) => {
     if (!row?.categoria || !row?.nome) return;
-
-    // LOGICA AVVISI
-    if (String(row.categoria).toUpperCase().includes('AVVISO')) {
-      if (isFalseLike(row.disponibile)) return;
-
-      const text = row.descrizione ? `${row.nome} - ${row.descrizione}` : row.nome;
-      if (banner) {
-        banner.textContent = text;
-        banner.style.display = 'inline-flex';
-      }
+    const category = safeTrim(row.categoria).toUpperCase();
+    if (category === 'IMPOSTAZIONE') {
+      if (safeTrim(row.nome).toLowerCase() === 'tema') themeSettings.push(row);
+      return;
+    }
+    if (category.includes('AVVISO')) {
+      scheduledNotices.push(row);
       return;
     }
 
@@ -355,14 +392,16 @@ function transformCsvToMenu(csvData) {
 
     menuData[catKey].items.push({
       name: row.nome,
-      price: parseFloat(String(row.prezzo || '').replace(',', '.')),
+      price: parsePrice(row.prezzo),
       description: row.descrizione || '',
       allergens: allergensList,
-      tag: row.tag || '',
+      tag: safeTrim(row.tag).toLowerCase(),
+      tipo: safeTrim(row.tipo).toLowerCase(),
       subcategory: row.categoria, // mantiene capitalizzazione originale
       soldOut: isSoldOutLike(row.disponibile)
     });
   });
+  applyScheduledContent();
 }
 
 function normalizeCategory(catString) {
@@ -412,22 +451,63 @@ function normalizeCategory(catString) {
 /* ===========================
    UI: WIFI MODAL
    =========================== */
+async function copyWifiPassword() {
+  const password = document.getElementById('wifi-password')?.textContent.trim();
+  const feedback = document.getElementById('wifi-copy-status');
+  if (!password || !feedback) return;
+  try {
+    await navigator.clipboard.writeText(password);
+    feedback.textContent = 'Password copiata!';
+  } catch (_) {
+    feedback.textContent = 'Tieni premuta la password per selezionarla e copiarla.';
+  }
+}
+
+let wifiReturnFocus = null;
+let wifiCloseTimer = null;
 function openWifi() {
   const m = document.getElementById('wifi-modal');
   if (!m) return;
-
+  clearTimeout(wifiCloseTimer);
+  wifiReturnFocus = document.activeElement;
+  const feedback = document.getElementById('wifi-copy-status');
+  if (feedback) feedback.textContent = '';
   m.style.display = 'flex';
-  setTimeout(() => m.classList.add('active'), 10);
+  document.body.classList.add('wifi-open');
+  setTimeout(() => { m.classList.add('active'); m.querySelector('.close-modal')?.focus(); }, 10);
 }
-
 function closeWifi(e) {
   const m = document.getElementById('wifi-modal');
   if (!m) return;
-
-  if (e.target === m || e.target.classList.contains('close-modal')) {
-    m.classList.remove('active');
-    setTimeout(() => (m.style.display = 'none'), 300);
-  }
+  if (e && e.target !== m && !e.target.closest?.('.close-modal')) return;
+  m.classList.remove('active');
+  document.body.classList.remove('wifi-open');
+  wifiReturnFocus?.focus?.();
+  wifiCloseTimer = setTimeout(() => { m.style.display = 'none'; }, 220);
+}
+function updateCategoryArrows() {
+  const buttons = Array.from(document.querySelectorAll('.nav-scroll-area .tab-btn'));
+  const selected = buttons.findIndex(button => button.classList.contains('active'));
+  const prev = document.getElementById('category-prev');
+  const next = document.getElementById('category-next');
+  if (prev) prev.disabled = selected <= 0;
+  if (next) next.disabled = selected < 0 || selected >= buttons.length - 1;
+}
+function scrollCategories(direction) {
+  const buttons = Array.from(document.querySelectorAll('.nav-scroll-area .tab-btn'));
+  const selected = buttons.findIndex(button => button.classList.contains('active'));
+  const target = selected + Math.sign(direction);
+  if (selected < 0 || target < 0 || target >= buttons.length || !direction) return;
+  const button = buttons[target];
+  const category = getActiveCategoryFromOnclick(button);
+  if (category) showCategory(category, button);
+}
+function clearMenuSearch() {
+  const input = document.getElementById('menu-search');
+  if (!input) return;
+  input.value = '';
+  searchMenu();
+  input.focus();
 }
 
 /* ===========================
@@ -481,7 +561,7 @@ function checkOpenStatus() {
   const el = document.getElementById('status-indicator');
   if (!el) return;
 
-  const isOpen = isOpenNow(new Date());
+  const isOpen = isOpenNow(venueNow());
 
   if (isOpen) {
     el.innerHTML = `<span class="status-dot"></span> Aperto`;
@@ -545,7 +625,7 @@ async function fetchWeather() {
 
 /* ===========================
    LITE MODE BUTTON
-   ===========================
+   =========================== */
 function toggleLiteMode() {
   const body = document.body;
   const btn = document.getElementById('lite-switch');
@@ -555,8 +635,8 @@ function toggleLiteMode() {
   const isLite = body.classList.toggle('lite-mode');
 
   // Salva preferenza PER SEMPRE (così se torno domani si ricorda)
-localStorage.setItem('liteModeUser', isLite ? 'true' : 'false'); // scelta manuale
-localStorage.removeItem('liteMode'); // pulizia vecchia chiave (se presente)
+storage.setItem('liteModeUser', isLite ? 'true' : 'false'); // scelta manuale
+storage.removeItem('liteMode'); // pulizia vecchia chiave (se presente)
 
   // Aggiorna icona
   updateLiteButton(btn, isLite);
@@ -582,11 +662,46 @@ function updateLiteButton(btn, isLite) {
       <span>Normal</span>
     `;
   }
-}*/
+}
 
 /* ===========================
    MENU UI
    =========================== */
+function revealCategoryButton(btn) {
+  const rail = btn?.closest?.('.nav-scroll-area');
+  if (!rail || rail.scrollWidth <= rail.clientWidth) return;
+  const buttons = Array.from(rail.querySelectorAll('.tab-btn'));
+  const maxScroll = Math.max(0, rail.scrollWidth - rail.clientWidth);
+  let left;
+  if (btn === buttons[0]) {
+    left = 0;
+  } else if (btn === buttons[buttons.length - 1]) {
+    left = maxScroll;
+  } else {
+    const buttonRect = btn.getBoundingClientRect();
+    const railRect = rail.getBoundingClientRect();
+    left = rail.scrollLeft + buttonRect.left - railRect.left - rail.clientLeft
+      - (rail.clientWidth - buttonRect.width) / 2;
+    left = Math.max(0, Math.min(maxScroll, left));
+  }
+  const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  // Scroll this rail only, without moving the page or footer.
+  rail.scrollTo({ left, behavior: reduceMotion ? 'auto' : 'smooth' });
+}
+
+const CATEGORY_CAPTIONS = {
+  calde: 'Una pausa tra le montagne',
+  fredde: 'Un sorso di freschezza',
+  aperitivi: 'Il gusto di stare insieme',
+  alcolici: 'Da gustare con calma',
+  food: 'Qualcosa di buono per la tua pausa',
+  dolci: 'Il lato dolce della montagna'
+};
+function categoryHeading(title, category) {
+  const caption = CATEGORY_CAPTIONS[category];
+  return `<h3>${escapeHtml(title)}</h3>${caption ? `<p class="category-caption">${escapeHtml(caption)}</p>` : ''}`;
+}
+
 function showCategory(catId, btnElement) {
   const isLite = document.body.classList.contains('lite-mode');
   const searchInput = document.getElementById('menu-search');
@@ -612,12 +727,18 @@ function showCategory(catId, btnElement) {
  if (targetBtn) {
    document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
    targetBtn.classList.add('active');
+   revealCategoryButton(targetBtn);
+   updateCategoryArrows();
  }
 
 
-  if (!data || !container) return;
+  if (!container) return;
+  if (!data || !data.items.length) {
+    container.innerHTML = categoryHeading(CATEGORY_TITLES[catId] || 'Menù', catId) + '<p class="empty-menu">Nessun prodotto disponibile in questa categoria.</p>';
+    return;
+  }
 
-  container.innerHTML = `<h3>${data.title}</h3>`;
+  container.innerHTML = categoryHeading(data.title, catId);
 
   const subcats = [...new Set(data.items.map((i) => i.subcategory))];
 
@@ -641,7 +762,7 @@ function showCategory(catId, btnElement) {
       (catId === 'fredde' && sub.toLowerCase() === 'bibite');
 
     if (!isRedundant) {
-      container.innerHTML += `<h3 class="subcategory-title">${sub}</h3>`;
+      container.innerHTML += `<h3 class="subcategory-title">${escapeHtml(sub)}</h3>`;
     }
 
     const groupItems = data.items.filter((i) => i.subcategory === sub);
@@ -671,17 +792,23 @@ function searchMenu() {
   }
 
   container.innerHTML = `<h3>Risultati ricerca (${allMatches.length})</h3>`;
+  if (!allMatches.length) {
+    container.innerHTML += '<div class="search-empty"><p>Nessun prodotto trovato. Prova con un altro nome.</p><button type="button" onclick="clearMenuSearch()">Cancella ricerca</button></div>';
+    return;
+  }
   renderItems(allMatches, container, document.body.classList.contains('lite-mode'));
 }
 
 function renderItems(items, container, isLite) {
   items.forEach((item, index) => {
-    const price = (Number.isFinite(item.price) ? item.price : 0).toFixed(2).replace('.', ',');
-    const descHTML = item.description ? `<p>${item.description}</p>` : '';
+    const price = Number.isFinite(item.price) && item.price >= 0 ? '€ ' + item.price.toFixed(2).replace('.', ',') : 'Prezzo da verificare';
+    const descHTML = item.description ? `<p>${escapeHtml(item.description)}</p>` : '';
 
     let tagHTML = '';
     if (item.tag === 'new') tagHTML = `<span class="tag-badge tag-new">Novità</span>`;
     if (item.tag === 'hot') tagHTML = `<span class="tag-badge tag-hot">Top</span>`;
+
+    if (item.tag === 'aperitivo' && ['alcolico', 'analcolico'].includes(item.tipo)) tagHTML += `<span class="tag-badge tag-aperitivo">Aperitivo ${escapeHtml(item.tipo)}</span>`;
 
     let allergensHTML = '';
     if (item.allergens?.length) {
@@ -694,13 +821,14 @@ function renderItems(items, container, isLite) {
     }
 
     container.innerHTML += `
-      <div class="menu-item ${item.soldOut ? 'sold-out' : ''}" style="animation-delay: ${isLite ? 0 : index * 0.05}s">
+      <div class="menu-item ${item.soldOut ? 'sold-out' : ''}" style="animation-delay: ${isLite ? 0 : Math.min(index, 4) * 0.025}s">
         <div class="item-info">
-          <h4>${item.name} ${tagHTML}</h4>
+          <h4>${escapeHtml(item.name)} ${tagHTML}</h4>
+          ${item.soldOut ? '<span class="availability-label">Terminato</span>' : ''}
           ${descHTML}
           ${allergensHTML}
         </div>
-        <div class="item-price">€ ${price}</div>
+        <div class="item-price">${price}</div>
       </div>
     `;
   });
@@ -730,6 +858,24 @@ if (searchInput && searchWrapper) {
 
 // se vuoi richiamarla anche da altre funzioni:
 window.syncSearchExpanded = syncSearchExpanded;
+  const categoryArea = document.querySelector('.nav-scroll-area');
+  categoryArea?.addEventListener('scroll', updateCategoryArrows, {passive: true});
+  window.addEventListener('resize', updateCategoryArrows);
+  if (categoryArea && typeof ResizeObserver !== 'undefined') new ResizeObserver(updateCategoryArrows).observe(categoryArea);
+  updateCategoryArrows();
+  document.addEventListener('keydown', event => {
+    const modal = document.getElementById('wifi-modal');
+    if (!modal?.classList.contains('active')) return;
+    if (event.key === 'Escape') { event.preventDefault(); closeWifi(); }
+    if (event.key === 'Tab') {
+      const controls = Array.from(modal.querySelectorAll('button, a[href], input'));
+      const first = controls[0], last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    }
+  });
+  const userLite = storage.getItem('liteModeUser');
+  if (userLite !== null) document.body.classList.toggle('lite-mode', userLite === 'true');
   // Orari + tabella + status (da CSV)
   initOpeningHours();
 
@@ -738,11 +884,17 @@ window.syncSearchExpanded = syncSearchExpanded;
   initDataFetch();
 
   // Aggiorna badge aperto/chiuso ogni minuto (senza refresh)
-  setInterval(checkOpenStatus, 60 * 1000);
+  setInterval(() => { checkOpenStatus(); applyScheduledContent(); }, 60 * 1000);
+  // Refresh only in visible tabs, preserving the selected category and search.
+  setInterval(() => { if (!document.hidden) initDataFetch(false); }, 2 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) { applyScheduledContent(); initDataFetch(false); }
+  });
 
-  /* Bottone lite: allinea l'icona allo stato reale del body
+  // Bottone lite: allinea l'icona allo stato reale del body
   const btn = document.getElementById('lite-switch');
   const isLiteNow = document.body.classList.contains('lite-mode');
-  if (btn) updateLiteButton(btn, isLiteNow);*/
+  if (btn) updateLiteButton(btn, isLiteNow);
    
 });
+
