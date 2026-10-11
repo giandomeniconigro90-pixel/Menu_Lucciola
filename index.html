@@ -17,8 +17,8 @@
 
   <link rel="stylesheet" href="vendor/fonts.css" />
   <link rel="preload" as="image" href="images/la-lucciola-neve.jpg" fetchpriority="high" />
-  <link rel="preload" as="image" href="images/IMG_4459.png" />
-  <link rel="stylesheet" href="style.css?v=20261011-1">
+  <link rel="preload" as="image" href="images/Logo_lucciola.png" />
+  <link rel="stylesheet" href="style.css?v=20261011-2">
   <script src="theme-init.js"></script>
 
   <!-- Aggiungi nel <head>, prima degli stili -->
@@ -76,7 +76,7 @@
 
     <div class="header-content">
       <div class="header-brand">
-        <img src="images/IMG_4459.png" alt="Logo La Lucciola" class="header-logo" width="64" height="64" />
+        <img id="bar-logo" src="images/Logo_lucciola.png" alt="Logo Bar La Lucciola" class="header-logo" width="64" height="64" />
         <div>
       <h1>Bar La Lucciola</h1>
       <div class="subtitle">Laceno - Bagnoli Irpino</div>
@@ -289,7 +289,16 @@
 
     <div id="opening-hours-box"></div>
 
-    <div class="footer-social">
+    <div class="footer-social" role="group" aria-label="Trova Bar La Lucciola online">
+      <a href="https://www.laceno.net/bar-la-lucciola.html" target="_blank" rel="noopener noreferrer" class="social-circle" aria-label="Bar La Lucciola su Laceno.net" title="Laceno.net">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m2 19 7-12 4 7 3-5 6 10H2Z"/><path d="m7 10 2 3 2-3"/><path d="m15 11 1 2 1-2"/></svg>
+      </a>
+      <a href="https://www.tripadvisor.it/Attraction_Review-g1985343-d3837986-Reviews-Bar_La_Lucciola-Bagnoli_Irpino_Province_of_Avellino_Campania.html" target="_blank" rel="noopener noreferrer" class="social-circle" aria-label="Bar La Lucciola su Tripadvisor" title="Tripadvisor">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8 1 5h6M21 8l2-3h-6M7 6c3-2 7-2 10 0M10 15l2 3 2-3"/><circle cx="6.5" cy="11" r="4.5"/><circle cx="17.5" cy="11" r="4.5"/><circle cx="6.5" cy="11" r="1.5"/><circle cx="17.5" cy="11" r="1.5"/></svg>
+      </a>
+      <a href="https://www.instagram.com/la_lucciola_bar/" target="_blank" rel="noopener noreferrer" class="social-circle" aria-label="Instagram Bar La Lucciola" title="Instagram">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".75" fill="currentColor" stroke="none"/></svg>
+      </a>
       <a
         href="https://www.facebook.com/barlalucciolaLACENO"
         target="_blank"
@@ -345,6 +354,6 @@
   </div>
 
   <script src="vendor/papaparse.min.js"></script>
-  <script src="script.js?v=20261011-4"></script>
+  <script src="script.js?v=20261011-5"></script>
 </body>
 </html>

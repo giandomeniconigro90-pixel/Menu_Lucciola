@@ -92,3 +92,17 @@ test('Wi-Fi copy confirms success and explains denied clipboard access',async()=
   const {ctx,run,els}=setup();run("document.getElementById('wifi-password').textContent='ExamplePass';document.getElementById('wifi-copy-status')");let copied='';ctx.navigator={clipboard:{async writeText(text){copied=text;}}};await run('copyWifiPassword()');assert.equal(copied,'ExamplePass');assert.equal(els['wifi-copy-status'].textContent,'Password copiata!');
   ctx.navigator.clipboard.writeText=async()=>{throw Error('denied');};await run('copyWifiPassword()');assert.match(els['wifi-copy-status'].textContent,/Tieni premuta/);
 });
+
+test('normal and Christmas logos follow schedule and URL override',()=>{
+  const {run,els,ctx}=setup();
+  run("transformCsvToMenu([{categoria:'IMPOSTAZIONE',nome:'tema',descrizione:'natale',disponibile:'TRUE',data_inizio:'01/12/2026',data_fine:'31/12/2026'}]);applyScheduledContent('2026-12-10')");
+  assert.equal(els['bar-logo'].src,'images/IMG_4459.png');
+  run("applyScheduledContent('2027-01-01')");
+  assert.equal(els['bar-logo'].src,'images/Logo_lucciola.png');
+  ctx.window.location.search='?tema=natale';
+  run("applyScheduledContent('2027-01-01')");
+  assert.equal(els['bar-logo'].src,'images/IMG_4459.png');
+  ctx.window.location.search='?tema=normale';
+  run("applyScheduledContent('2026-12-10')");
+  assert.equal(els['bar-logo'].src,'images/Logo_lucciola.png');
+});

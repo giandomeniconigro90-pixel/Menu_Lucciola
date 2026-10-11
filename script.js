@@ -298,6 +298,13 @@ function themeForRows(rows, today = venueDateKey()) {
   }
   return theme;
 }
+function updateBrandLogo(theme) {
+  const logo = document.getElementById('bar-logo');
+  if (!logo) return;
+  const src = theme === 'natale' ? 'images/IMG_4459.png' : 'images/Logo_lucciola.png';
+  if (logo.getAttribute?.('src') !== src) logo.src = src;
+  logo.alt = theme === 'natale' ? 'Logo natalizio Bar La Lucciola' : 'Logo Bar La Lucciola';
+}
 function applyScheduledContent(today = venueDateKey()) {
   const banner = document.getElementById('alert-banner');
   if (banner) {
@@ -309,6 +316,7 @@ function applyScheduledContent(today = venueDateKey()) {
   // URL override remains available for testing either theme without changing Sheets.
   const requested = new URLSearchParams(window.location?.search || '').get('tema');
   const theme = ['normale', 'natale'].includes(requested) ? requested : themeForRows(themeSettings, today);
+  updateBrandLogo(theme);
   const existing = document.getElementById('seasonal-theme');
   if (theme === 'natale' && !existing) {
     const link = document.createElement('link');
@@ -876,6 +884,7 @@ window.syncSearchExpanded = syncSearchExpanded;
   });
   const userLite = storage.getItem('liteModeUser');
   if (userLite !== null) document.body.classList.toggle('lite-mode', userLite === 'true');
+  updateBrandLogo(new URLSearchParams(window.location?.search || '').get('tema') === 'natale' ? 'natale' : 'normale');
   // Orari + tabella + status (da CSV)
   initOpeningHours();
 
