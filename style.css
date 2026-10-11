@@ -1286,4 +1286,4 @@ body.wifi-open { overflow: hidden; }
 .social-circle[aria-label="Facebook"] svg { fill:currentColor; stroke:none; }
 .social-circle:hover { background:#f2e7d5; }
 .social-circle:focus-visible { outline:3px solid #80532f; outline-offset:4px; }
-.header-logo { object-fit:contain; background:transparent; }
+.header-logo { object-fit:contain; background:var(--primary-color); }
